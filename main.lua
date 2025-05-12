@@ -47,6 +47,11 @@ function love.draw()
             local y1 = 1 - (plots[p].quad.a * x1 * x1 + plots[p].quad.b * x1 + plots[p].quad.c)
             local y2 = 1 - (plots[p].quad.a * x2 * x2 + plots[p].quad.b * x2 + plots[p].quad.c)
 
+            x1 = math.max(0, math.min(x1, 1))
+            y1 = math.max(0, math.min(y1, 1))
+            x2 = math.max(0, math.min(x2, 1))
+            y2 = math.max(0, math.min(y2, 1))
+
             love.graphics.line(plots[p].x + 100*x1, plots[p].y + 100*y1, plots[p].x + 100*x2, plots[p].y + 100*y2)
         end
 
@@ -62,6 +67,18 @@ function love.draw()
     if selectedPoint then
         plots[selectedPoint.plot].points[selectedPoint.point].x = math.max(0, math.min((love.mouse.getX() - plots[selectedPoint.plot].x)/100, 1))
         plots[selectedPoint.plot].points[selectedPoint.point].y = math.max(0, math.min(1-(love.mouse.getY() - plots[selectedPoint.plot].y)/100, 1))
+    end
+
+    -- plot the color ramp !
+    local rampResolution = 320
+    for x=0,rampResolution do
+        local u = x/rampResolution
+        local r = plots[1].quad.a * u * u + plots[1].quad.b * u + plots[1].quad.c
+        local g = plots[2].quad.a * u * u + plots[2].quad.b * u + plots[2].quad.c
+        local b = plots[3].quad.a * u * u + plots[3].quad.b * u + plots[3].quad.c
+
+        love.graphics.setColor(r, g, b)
+        love.graphics.line(10+x, 120, 10+x, 220)
     end
 end
 
