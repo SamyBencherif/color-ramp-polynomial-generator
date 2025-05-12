@@ -44,11 +44,15 @@ function love.draw()
         for i=1,resolution do
             local x1 = (i-1)/resolution
             local x2 = i/resolution
-            local y1 = 1-plots[p].quad.a * x1 * x1 + plots[p].quad.b * x1 + plots[p].quad.c
-            local y2 = 1-plots[p].quad.a * x2 * x2 + plots[p].quad.b * x2 + plots[p].quad.c
+            local y1 = 1 - (plots[p].quad.a * x1 * x1 + plots[p].quad.b * x1 + plots[p].quad.c)
+            local y2 = 1 - (plots[p].quad.a * x2 * x2 + plots[p].quad.b * x2 + plots[p].quad.c)
 
             love.graphics.line(plots[p].x + 100*x1, plots[p].y + 100*y1, plots[p].x + 100*x2, plots[p].y + 100*y2)
         end
+
+        plots[p].quad.a = (plots[p].points[1].y - plots[p].points[3].y + (plots[p].points[3].x)*(plots[p].points[1].y - plots[p].points[2].y) / (plots[p].points[1].x - plots[p].points[2].x) - (plots[p].points[1].x)*(plots[p].points[1].y - plots[p].points[2].y) / (plots[p].points[1].x - plots[p].points[2].x)) / (-math.pow(plots[p].points[3].x, 2) - (plots[p].points[3].x)*(math.pow(plots[p].points[2].x, 2) - math.pow(plots[p].points[1].x, 2)) / (plots[p].points[1].x - plots[p].points[2].x) + math.pow(plots[p].points[1].x, 2) + (plots[p].points[1].x)*(math.pow(plots[p].points[2].x, 2) - math.pow(plots[p].points[1].x, 2)) / (plots[p].points[1].x - plots[p].points[2].x))
+        plots[p].quad.b = (plots[p].quad.a*math.pow(plots[p].points[2].x, 2) + plots[p].points[1].y - plots[p].quad.a*math.pow(plots[p].points[1].x, 2) - plots[p].points[2].y) / (plots[p].points[1].x - plots[p].points[2].x)
+        plots[p].quad.c = plots[p].points[1].y - plots[p].quad.a*math.pow(plots[p].points[1].x, 2) - plots[p].quad.b*(plots[p].points[1].x)
     end
 
     if not love.mouse.isDown(1) then
