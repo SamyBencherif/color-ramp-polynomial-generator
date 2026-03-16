@@ -33,11 +33,51 @@
       font-size: 11px;
       color: #555;
     }
+    #eqs {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      letter-spacing: 0.03em;
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 12px 20px;
+      width: 100%;
+      max-width: 1020px;
+    }
+    .eq-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .eq-label {
+      font-weight: bold;
+      min-width: 36px;
+    }
+    .eq-body {
+      color: #ccc;
+      font-variant-numeric: tabular-nums;
+    }
   </style>
 </head>
 <body>
   <h1>Color Ramp Polynomial Generator</h1>
   <canvas id="c"></canvas>
+  <div id="eqs">
+    <div class="eq-row">
+      <span class="eq-label" style="color:#ff5555">R(u)</span>
+      <span class="eq-body" id="eq-r">=</span>
+    </div>
+    <div class="eq-row">
+      <span class="eq-label" style="color:#55ff55">G(u)</span>
+      <span class="eq-body" id="eq-g">=</span>
+    </div>
+    <div class="eq-row">
+      <span class="eq-label" style="color:#5599ff">B(u)</span>
+      <span class="eq-body" id="eq-b">=</span>
+    </div>
+  </div>
   <p class="hint">Drag the control points to reshape the color curves</p>
 
   <script>
@@ -180,8 +220,33 @@
       }
 
       drawRamp();
+      updateEquations();
 
       requestAnimationFrame(render);
+    }
+
+    // --- Equation display ---
+
+    const eqEls = [
+      document.getElementById('eq-r'),
+      document.getElementById('eq-g'),
+      document.getElementById('eq-b'),
+    ];
+
+    function fmtCoef(val, isFirst) {
+      const abs = Math.abs(val).toFixed(4);
+      if (isFirst) return val < 0 ? `\u2212${abs}` : abs;
+      return val < 0 ? ` \u2212 ${abs}` : ` + ${abs}`;
+    }
+
+    function fmtQuad(q) {
+      return `= ${fmtCoef(q.a, true)}\u00b7u\u00b2${fmtCoef(q.b, false)}\u00b7u${fmtCoef(q.c, false)}`;
+    }
+
+    function updateEquations() {
+      for (let i = 0; i < 3; i++) {
+        eqEls[i].textContent = fmtQuad(plots[i].quad);
+      }
     }
 
     // --- Input helpers ---
