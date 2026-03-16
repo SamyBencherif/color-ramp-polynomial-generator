@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color Ramp Polynomial Generator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: monospace;
+      color: #ccc;
+      padding: 24px;
+      gap: 12px;
+    }
+    h1 {
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #888;
+    }
+    canvas {
+      display: block;
+      cursor: crosshair;
+      max-width: 100%;
+    }
+    p.hint {
+      font-size: 11px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Color Ramp Polynomial Generator</h1>
+  <canvas id="c"></canvas>
+  <p class="hint">Drag the control points to reshape the color curves</p>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    const SCALE = 3;
+    const PLOT_SIZE = 100 * SCALE;       // 300
+    const GRID_DIV = 10;
+    const CELL = PLOT_SIZE / GRID_DIV;   // 30
+    const PAD = 10 * SCALE;              // 30
+    const RAMP_H = 100 * SCALE;          // 300 — full height like the plots
+    const RAMP_GAP = 10 * SCALE;         // 30
+
+    const CANVAS_W = PAD + PLOT_SIZE + PAD + PLOT_SIZE + PAD + PLOT_SIZE + PAD;
+    const CANVAS_H = PAD + PLOT_SIZE + RAMP_GAP + RAMP_H + PAD;
+
+    canvas.width = CANVAS_W;
+    canvas.height = CANVAS_H;
+
+    const RAMP_W = PLOT_SIZE * 3 + PAD * 2;  // spans all 3 plots
+
+    const plots = [
+      { ox: PAD,             oy: PAD, r: 1, g: 0, b: 0,
+        points: [{x:0,y:0},{x:.5,y:.5},{x:1,y:1}], quad:{a:0,b:1,c:0} },
+      { ox: PAD*2+PLOT_SIZE, oy: PAD, r: 0, g: 1, b: 0,
+        points: [{x:0,y:0},{x:.5,y:.5},{x:1,y:1}], quad:{a:0,b:1,c:0} },
+      { ox: PAD*3+PLOT_SIZE*2, oy: PAD, r: 0, g: 0, b: 1,
+        points: [{x:0,y:0},{x:.5,y:.5},{x:1,y:1}], quad:{a:0,b:1,c:0} },
+    ];
+
+    let selectedPoint = null;  // { plotIdx, pointIdx }
+
+    function fitQuad(plot) {
+      const [p1, p2, p3] = plot.points;
+      const x1 = p1.x, y1 = p1.y;
+      const x2 = p2.x, y2 = p2.y;
+      const x3 = p3.x, y3 = p3.y;
+
+      const dx12 = x1 - x2;
+      if (Math.abs(dx12) < 1e-10) return;
+
+      const ratio = (y1 - y2) / dx12;
+      const x2sq_diff = x2 * x2 - x1 * x1;
+
+      const num   = y1 - y3 + x3 * ratio - x1 * ratio;
+      const denom = -(x3*x3) - x3 * x2sq_diff / dx12 + x1*x1 + x1 * x2sq_diff / dx12;
+
+      if (Math.abs(denom) < 1e-10) return;
+
+      plot.quad.a = num / denom;
+      plot.quad.b = (plot.quad.a * x2*x2 + y1 - plot.quad.a * x1*x1 - y2) / dx12;
+      plot.quad.c = y1 - plot.quad.a * x1*x1 - plot.quad.b * x1;
+    }
+
+    function evalQuad(q, u) {
+      return q.a * u * u + q.b * u + q.c;
+    }
+
+    function clamp(v, lo, hi) {
+      return v < lo ? lo : v > hi ? hi : v;
+    }
+
+    function drawGrid(ox, oy) {
+      ctx.strokeStyle = 'rgba(140, 140, 0, 0.55)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= GRID_DIV; i++) {
+        const d = i * CELL;
+        ctx.beginPath();
+        ctx.moveTo(ox,           oy + d);
+        ctx.lineTo(ox + PLOT_SIZE, oy + d);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(ox + d, oy);
+        ctx.lineTo(ox + d, oy + PLOT_SIZE);
+        ctx.stroke();
+      }
+    }
+
+    function drawCurve(plot) {
+      const { ox, oy, r, g, b, quad } = plot;
+      const segments = 60;
+      ctx.strokeStyle = `rgb(${r*255},${g*255},${b*255})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i <= segments; i++) {
+        const nx = i / segments;
+        const ny = clamp(evalQuad(quad, nx), 0, 1);
+        const cx = ox + nx * PLOT_SIZE;
+        const cy = oy + PLOT_SIZE - ny * PLOT_SIZE;
+        if (i === 0) ctx.moveTo(cx, cy);
+        else ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+    }
+
+    function drawPoints(plot) {
+      const { ox, oy, r, g, b, points } = plot;
+      for (const pt of points) {
+        const cx = ox + pt.x * PLOT_SIZE;
+        const cy = oy + PLOT_SIZE - pt.y * PLOT_SIZE;
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r*255},${g*255},${b*255},0.2)`;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgb(${r*255},${g*255},${b*255})`;
+        ctx.fill();
+      }
+    }
+
+    function drawRamp() {
+      const rx = PAD;
+      const ry = PAD + PLOT_SIZE + RAMP_GAP;
+      for (let i = 0; i <= RAMP_W; i++) {
+        const u = i / RAMP_W;
+        const r = clamp(evalQuad(plots[0].quad, u), 0, 1);
+        const g = clamp(evalQuad(plots[1].quad, u), 0, 1);
+        const b = clamp(evalQuad(plots[2].quad, u), 0, 1);
+        ctx.strokeStyle = `rgb(${r*255|0},${g*255|0},${b*255|0})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(rx + i, ry);
+        ctx.lineTo(rx + i, ry + RAMP_H);
+        ctx.stroke();
+      }
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+      for (const plot of plots) {
+        fitQuad(plot);
+        drawGrid(plot.ox, plot.oy);
+        drawCurve(plot);
+        drawPoints(plot);
+      }
+
+      drawRamp();
+
+      requestAnimationFrame(render);
+    }
+
+    // --- Input helpers ---
+
+    function getCanvasPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width  / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const src = e.touches ? e.touches[0] : e;
+      return {
+        x: (src.clientX - rect.left)  * scaleX,
+        y: (src.clientY - rect.top)   * scaleY,
+      };
+    }
+
+    function pickPoint(mx, my) {
+      const HIT_R2 = 18 * 18;
+      for (let pi = 0; pi < plots.length; pi++) {
+        const plot = plots[pi];
+        for (let vi = 0; vi < plot.points.length; vi++) {
+          const pt = plot.points[vi];
+          const px = plot.ox + pt.x * PLOT_SIZE;
+          const py = plot.oy + PLOT_SIZE - pt.y * PLOT_SIZE;
+          const dx = mx - px, dy = my - py;
+          if (dx*dx + dy*dy < HIT_R2) {
+            return { pi, vi };
+          }
+        }
+      }
+      return null;
+    }
+
+    function onDown(e) {
+      e.preventDefault();
+      const { x, y } = getCanvasPos(e);
+      selectedPoint = pickPoint(x, y);
+    }
+
+    function onMove(e) {
+      e.preventDefault();
+      if (!selectedPoint) return;
+      const { x, y } = getCanvasPos(e);
+      const plot = plots[selectedPoint.pi];
+      const pt   = plot.points[selectedPoint.vi];
+      pt.x = clamp((x - plot.ox) / PLOT_SIZE, 0, 1);
+      pt.y = clamp(1 - (y - plot.oy) / PLOT_SIZE, 0, 1);
+    }
+
+    function onUp(e) {
+      selectedPoint = null;
+    }
+
+    canvas.addEventListener('mousedown',  onDown);
+    canvas.addEventListener('mousemove',  onMove);
+    canvas.addEventListener('mouseup',    onUp);
+    canvas.addEventListener('mouseleave', onUp);
+    canvas.addEventListener('touchstart', onDown, { passive: false });
+    canvas.addEventListener('touchmove',  onMove, { passive: false });
+    canvas.addEventListener('touchend',   onUp,   { passive: false });
+
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>

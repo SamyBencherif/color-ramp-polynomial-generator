@@ -13,7 +13,11 @@ This program allows you to create color ramps using quadratic curves.
 
 1. Click and drag the vertices to change the color levels.
 
-## How to run this program
+## Run in the browser
+
+Open `index.html` directly in any modern browser — no install, no build step required.
+
+## Run as a desktop app
 
 1. Install Love2D: https://love2d.org/#download
 2. Download the project `git clone git@github.com:SamyBencherif/color-ramp-polynomial-generator.git` or https://github.com/SamyBencherif/color-ramp-polynomial-generator/archive/refs/heads/main.zip
